@@ -16,6 +16,18 @@ export default function HeadphoneScroll() {
   const [loadedCount, setLoadedCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Lock scroll during loading
+  useEffect(() => {
+    if (isLoading) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isLoading]);
+
   // Load Images
   useEffect(() => {
     const loadImages = async () => {
