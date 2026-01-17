@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useLayoutEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
@@ -16,16 +17,51 @@ export default function HeadphoneScroll() {
   const [loadedCount, setLoadedCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Lock scroll during loading
+  // Lock scroll & Force Top during loading
   useEffect(() => {
     if (isLoading) {
+      // 1. Disable Browser Scroll Restoration
+      if ('scrollRestoration' in window.history) {
+        window.history.scrollRestoration = 'manual';
+      }
+      
+      // 2. Force scroll to top immediately
+      window.scrollTo(0, 0);
+
+      // 3. CSS Lock (Both body and html)
       document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
+      document.documentElement.style.overflow = "hidden";
+      
+      // 4. VISUAL LOCK: Hide Scrollbar completely
+      const style = document.createElement('style');
+      style.id = "hide-scrollbar-style";
+      style.innerHTML = `
+        ::-webkit-scrollbar { display: none !important; }
+        html, body { -ms-overflow-style: none !important; scrollbar-width: none !important; }
+      `;
+      document.head.appendChild(style);
+
+      // 5. Event Lock
+      const preventDefault = (e: Event) => e.preventDefault();
+      const opts = { passive: false };
+      
+      window.addEventListener("wheel", preventDefault, opts);
+      window.addEventListener("touchmove", preventDefault, opts);
+      window.addEventListener("keydown", preventDefault);
+      
+      return () => {
+         // Cleanup
+         document.body.style.overflow = "";
+         document.documentElement.style.overflow = "";
+         
+         const styleEl = document.getElementById("hide-scrollbar-style");
+         if (styleEl) styleEl.remove();
+         
+         window.removeEventListener("wheel", preventDefault);
+         window.removeEventListener("touchmove", preventDefault);
+         window.removeEventListener("keydown", preventDefault);
+      };
     }
-    return () => {
-      document.body.style.overflow = "";
-    };
   }, [isLoading]);
 
   // Load Images
@@ -181,14 +217,41 @@ export default function HeadphoneScroll() {
     // 400vh height for faster pacing (less scroll distance)
     <div ref={containerRef} className="relative w-full" style={{ height: "400vh" }}>
       
-      {isLoading && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black text-white">
-            <div className="flex flex-col items-center gap-4">
-                <div className="h-10 w-10 animate-spin rounded-full border-4 border-white border-t-transparent" />
-                <p className="text-sm tracking-widest uppercase opacity-60">Loading Assets ({Math.round((loadedCount / FRAME_COUNT) * 100)}%)</p>
-            </div>
-        </div>
-      )}
+      {/* Loading / Splash Screen */}
+      <AnimatePresence mode="wait">
+        {isLoading && (
+            <motion.div 
+                className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black text-white"
+                initial={{ opacity: 1 }}
+                exit={{ y: "-100%", transition: { duration: 0.8, ease: [0.76, 0, 0.24, 1] } }}
+            >
+                <div className="flex flex-col items-center gap-8">
+                     {/* Logo / Brand */}
+                    <motion.h1 
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="text-4xl md:text-6xl font-bold tracking-tighter"
+                    >
+                        Zenith X
+                    </motion.h1>
+
+                    {/* Progress Bar */}
+                    <div className="w-64 h-1 bg-gray-800 rounded-full overflow-hidden">
+                        <motion.div 
+                            className="h-full bg-white"
+                            initial={{ width: 0 }}
+                            animate={{ width: `${(loadedCount / FRAME_COUNT) * 100}%` }}
+                            transition={{ ease: "linear", duration: 0.2 }}
+                        />
+                    </div>
+                    
+                    <p className="text-xs font-mono opacity-40 uppercase tracking-widest">
+                        Loading Experience {Math.round((loadedCount / FRAME_COUNT) * 100)}%
+                    </p>
+                </div>
+            </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Pinned Container */}
       <div className="sticky top-0 h-screen w-full overflow-hidden">
